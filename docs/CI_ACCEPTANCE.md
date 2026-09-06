@@ -17,10 +17,31 @@
 | JUnit | `regression.xml`、`concurrency.xml`、`ui.xml`和Newman XML分别生成 |
 | Jenkins运行环境 | 页面HTTP 200；Python 3.12、Node 20和Java 21可用 |
 | Jenkins Pipeline | 本机任务`wallet-quality-pipeline`第8次构建SUCCESS，耗时21.603秒 |
-| Jenkins测试趋势 | 支付主线126项（116条Pytest + 10条Newman断言）全部通过 |
+| Jenkins测试结果 | 支付主线126项（116条Pytest + 10条Newman断言）全部通过 |
 | Jenkins产物归档 | Allure HTML/原始结果、JUnit和Newman XML均可从构建产物下载 |
 
 支付与测试框架共有116条非UI测试，加上3条Playwright UI用例，完整Pytest口径为119条。
+
+## 2026-09-06 GitHub Actions云端验收
+
+私有仓库：`Yap2002/wallet-quality-automation`。远端使用全新的干净提交历史，只包含支付质量工程文件。
+
+| 验收项 | 实际结果 |
+|---|---|
+| 质量流水线 | Run `34029496130`，SUCCESS，全部18个步骤通过 |
+| 运行环境 | GitHub Ubuntu Runner、Python 3.12、MySQL 8.4、Redis 7 |
+| 静态门禁 | Ruff通过；89个文件格式检查通过；mypy检查80个源码文件通过 |
+| 普通回归 | 115 passed |
+| 并发事务门禁 | 1 passed |
+| Playwright UI | 3 passed |
+| Postman/Newman | 10 requests、10 assertions、0 failed |
+| 报告 | Allure HTML生成成功；质量证据Artifact约1.75MB |
+| 性能流水线 | Run `34029702689`，SUCCESS，全部12个步骤通过 |
+| Locust负载 | 10用户、30秒、503请求、0失败 |
+| Locust指标 | 平均13ms、P95 32ms、约17.07 RPS |
+| 性能证据 | HTML、CSV与服务日志Artifact约333KB |
+
+质量流水线中的官方GitHub Action已升级到v7，消除了Node.js 20运行时弃用告警。npm安装仍显示Newman 6.2.2上游传递依赖的弃用提示；Newman当前没有更高版本可升级，这些提示不影响测试结果。
 
 ## 本次CI闭环发现并修复的问题
 
@@ -31,11 +52,10 @@
 5. **Jenkins插件依赖不完整**：首次真实任务缺少Git和Timestamper插件。修复为在镜像构建时固定安装流水线所需插件。
 6. **成功构建没有报告产物**：`post`块重复申请`node`后进入`@2`空工作目录，测试虽通过但找不到报告。修复为直接在当前流水线工作目录生成和归档报告，第8次构建验证通过。
 
-## 外部流水线状态
+## 范围边界
 
-- GitHub Actions的实际运行状态和产物以私有仓库Actions页面为准。
 - 当前没有自动部署阶段，因此严格名称是“CI质量流水线”，不是完整CD。
 
 ## 面试表达
 
-> 我没有把Jenkinsfile写完就算作CI完成，而是在本机创建真实Pipeline任务并注入隔离测试库凭据。流水线通过迁移、静态检查、115条普通回归、1条并发门禁和10条Newman断言，并归档Allure、JUnit与Newman证据。
+> 我分别跑通了本机Jenkins和GitHub Actions质量流水线。GitHub云端环境完成115条普通回归、1条并发事务测试、3条UI测试和10条Newman断言，并归档Allure、JUnit和Newman证据；独立Locust工作流完成503个请求且0失败。性能数据只代表本次受控小样本，项目没有生产自动部署阶段。

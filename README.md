@@ -126,7 +126,7 @@ tests/ui                  Playwright浏览器链路
 
 ## 真实结果边界
 
-仓库中只记录实际执行结果。2026-09-05在MySQL 8.4和真实Redis环境完成验收：116条非UI支付与框架测试以及3条Playwright UI测试通过；10个Newman请求及10个断言通过。JMeter历史小样本为24个采样、0错误，Locust历史小样本为95个请求、0失败。性能小样本只证明脚本和本机链路可用，不代表系统容量。本机Jenkins Pipeline已真实成功并归档Allure、JUnit和Newman证据。GitHub Actions的最新运行结果见仓库Actions页面，详细口径见[CI验收记录](docs/CI_ACCEPTANCE.md)。
+仓库中只记录实际执行结果。2026-09-06，GitHub Actions在MySQL 8.4和Redis 7环境完成云端验收：115条普通回归、1条并发事务测试和3条Playwright UI测试全部通过；10个Newman请求及10个断言通过；Allure、JUnit和Newman证据成功归档。独立Locust工作流使用10个并发用户运行30秒，共完成503个请求、0失败，平均响应时间13ms、P95为32ms、吞吐约17.07 RPS。性能结果仅代表本次GitHub托管Runner小样本，不代表生产容量。本机Jenkins Pipeline也已真实成功并完成报告归档，详细证据见[CI验收记录](docs/CI_ACCEPTANCE.md)。
 
 ## 求职材料
 
