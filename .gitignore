@@ -1,0 +1,26 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+allure-results/
+allure-report/
+newman-results/
+junit-results/
+.env
+.venv/
+node_modules/
+performance-results/jmeter-results.jtl
+dist/
+build/
+*.egg-info/
+.DS_Store
+agent-results/
+
+# Local learning and interview preparation notes are not project deliverables.
+PROJECT_LEARNING_GUIDE.md
+docs/PROJECT_INTERVIEW_GUIDE.md
+docs/RESUME_PROJECT.md
+docs/INTERVIEW_QA.md

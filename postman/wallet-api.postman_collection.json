@@ -1,0 +1,292 @@
+{
+  "info": {
+    "_postman_id": "c48da78f-61b3-48e5-8c97-4bbd067508fe",
+    "name": "Wallet API Quality Regression",
+    "description": "A chained wallet API flow with runtime-only credentials and response assertions.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "if (!pm.variables.get('run_id')) {",
+          "  pm.collectionVariables.set('run_id', `${Date.now()}-${pm.variables.replaceIn('{{$randomUUID}}').slice(0, 8)}`);",
+          "}"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {"key": "run_id", "value": ""},
+    {"key": "payer_user_id", "value": ""},
+    {"key": "payer_api_key", "value": ""},
+    {"key": "payer_wallet_id", "value": ""},
+    {"key": "payee_user_id", "value": ""},
+    {"key": "payee_api_key", "value": ""},
+    {"key": "payee_wallet_id", "value": ""},
+    {"key": "transfer_id", "value": ""}
+  ],
+  "item": [
+    {
+      "name": "01 Create payer",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"},
+          {"key": "X-Trace-ID", "value": "postman-create-payer-{{run_id}}"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"email\":\"postman-payer-{{run_id}}@example.com\"}"
+        },
+        "url": "{{base_url}}/api/v1/users"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('payer created', () => pm.response.to.have.status(201));",
+              "const body = pm.response.json();",
+              "pm.expect(body.email).to.eql(`postman-payer-${pm.variables.get('run_id')}@example.com`);",
+              "pm.expect(body.api_key).to.be.a('string').and.not.empty;",
+              "pm.collectionVariables.set('payer_user_id', body.id);",
+              "pm.collectionVariables.set('payer_api_key', body.api_key);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 Create payee",
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"email\":\"postman-payee-{{run_id}}@example.com\"}"
+        },
+        "url": "{{base_url}}/api/v1/users"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('payee created', () => pm.response.to.have.status(201));",
+              "const body = pm.response.json();",
+              "pm.collectionVariables.set('payee_user_id', body.id);",
+              "pm.collectionVariables.set('payee_api_key', body.api_key);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 Create payer wallet",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Authorization", "value": "Bearer {{payer_api_key}}"}
+        ],
+        "url": "{{base_url}}/api/v1/users/{{payer_user_id}}/wallets"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('payer wallet created', () => pm.response.to.have.status(201));",
+              "const body = pm.response.json();",
+              "pm.expect(body.balance).to.eql('0.00');",
+              "pm.collectionVariables.set('payer_wallet_id', body.id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 Create payee wallet",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Authorization", "value": "Bearer {{payee_api_key}}"}
+        ],
+        "url": "{{base_url}}/api/v1/users/{{payee_user_id}}/wallets"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('payee wallet created', () => pm.response.to.have.status(201));",
+              "const body = pm.response.json();",
+              "pm.expect(body.balance).to.eql('0.00');",
+              "pm.collectionVariables.set('payee_wallet_id', body.id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 Deposit payer 100.00",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"},
+          {"key": "Authorization", "value": "Bearer {{payer_api_key}}"},
+          {"key": "Idempotency-Key", "value": "postman-deposit-{{run_id}}"},
+          {"key": "X-Trace-ID", "value": "postman-deposit-{{run_id}}"}
+        ],
+        "body": {"mode": "raw", "raw": "{\"amount\":\"100.00\"}"},
+        "url": "{{base_url}}/api/v1/wallets/{{payer_wallet_id}}/deposits"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('deposit succeeds', () => pm.response.to.have.status(201));",
+              "const body = pm.response.json();",
+              "pm.expect(body.status).to.eql('SUCCEEDED');",
+              "pm.expect(body.amount).to.eql('100.00');",
+              "pm.expect(body.trace_id).to.eql(`postman-deposit-${pm.variables.get('run_id')}`);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 Transfer payer to payee 40.00",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"},
+          {"key": "Authorization", "value": "Bearer {{payer_api_key}}"},
+          {"key": "Idempotency-Key", "value": "postman-transfer-{{run_id}}"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"source_wallet_id\":\"{{payer_wallet_id}}\",\"destination_wallet_id\":\"{{payee_wallet_id}}\",\"amount\":\"40.00\"}"
+        },
+        "url": "{{base_url}}/api/v1/transfers"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('transfer succeeds', () => pm.response.to.have.status(201));",
+              "const body = pm.response.json();",
+              "pm.expect(body.type).to.eql('TRANSFER');",
+              "pm.expect(body.status).to.eql('SUCCEEDED');",
+              "pm.collectionVariables.set('transfer_id', body.id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 Payee queries transfer",
+      "request": {
+        "method": "GET",
+        "header": [
+          {"key": "Authorization", "value": "Bearer {{payee_api_key}}"}
+        ],
+        "url": "{{base_url}}/api/v1/transactions/{{transfer_id}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('payee can query transfer', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.expect(body.id).to.eql(pm.variables.get('transfer_id'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "08 Query payer balance",
+      "request": {
+        "method": "GET",
+        "header": [
+          {"key": "Authorization", "value": "Bearer {{payer_api_key}}"}
+        ],
+        "url": "{{base_url}}/api/v1/wallets/{{payer_wallet_id}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('payer balance is 60.00', () => pm.response.to.have.status(200));",
+              "pm.expect(pm.response.json().balance).to.eql('60.00');"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "09 Query payee balance",
+      "request": {
+        "method": "GET",
+        "header": [
+          {"key": "Authorization", "value": "Bearer {{payee_api_key}}"}
+        ],
+        "url": "{{base_url}}/api/v1/wallets/{{payee_wallet_id}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('payee balance is 40.00', () => pm.response.to.have.status(200));",
+              "pm.expect(pm.response.json().balance).to.eql('40.00');"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "10 Reject insufficient withdrawal",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"},
+          {"key": "Authorization", "value": "Bearer {{payee_api_key}}"},
+          {"key": "Idempotency-Key", "value": "postman-withdraw-{{run_id}}"}
+        ],
+        "body": {"mode": "raw", "raw": "{\"amount\":\"40.01\"}"},
+        "url": "{{base_url}}/api/v1/wallets/{{payee_wallet_id}}/withdrawals"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('insufficient balance rejected', () => pm.response.to.have.status(409));",
+              "const body = pm.response.json();",
+              "pm.expect(body.code).to.eql('INSUFFICIENT_BALANCE');",
+              "pm.expect(body.trace_id).to.be.a('string').and.not.empty;"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

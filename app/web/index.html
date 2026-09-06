@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Wallet QA Console</title>
+    <link rel="stylesheet" href="/static/app.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="hero">
+        <p class="eyebrow">PAYMENT QUALITY LAB</p>
+        <h1>Wallet QA Console</h1>
+        <p>用于验证余额查询、钱包转账与异常提示的最小测试页面。</p>
+      </header>
+      <section class="card credentials" aria-labelledby="connection-title">
+        <div>
+          <p class="step">01 · 连接钱包</p>
+          <h2 id="connection-title">测试身份</h2>
+        </div>
+        <label>
+          API Key
+          <input data-testid="api-key" type="password" autocomplete="off" placeholder="粘贴测试用户 API Key" />
+        </label>
+        <label>
+          当前钱包 ID
+          <input data-testid="wallet-id" autocomplete="off" placeholder="UUID" />
+        </label>
+        <button data-testid="query-balance" type="button">查询余额</button>
+      </section>
+      <section class="balance-panel" aria-live="polite">
+        <div>
+          <p>AVAILABLE BALANCE</p>
+          <strong data-testid="balance">--</strong>
+        </div>
+        <span>CNY</span>
+      </section>
+      <section class="card transfer" aria-labelledby="transfer-title">
+        <div>
+          <p class="step">02 · 发起交易</p>
+          <h2 id="transfer-title">钱包转账</h2>
+        </div>
+        <label>
+          收款钱包 ID
+          <input data-testid="destination-wallet-id" autocomplete="off" placeholder="UUID" />
+        </label>
+        <label>
+          金额（CNY）
+          <input data-testid="amount" inputmode="decimal" autocomplete="off" placeholder="10.00" />
+        </label>
+        <button data-testid="submit-transfer" type="button">确认转账</button>
+      </section>
+      <section class="result" data-testid="result" aria-live="assertive" data-kind="idle">
+        等待操作
+      </section>
+    </main>
+    <script src="/static/app.js" defer></script>
+  </body>
+</html>

@@ -1,0 +1,102 @@
+name: Wallet quality gate
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wallet-quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root-wallet-ci
+          MYSQL_DATABASE: wallet_test
+          MYSQL_USER: wallet
+          MYSQL_PASSWORD: wallet
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -u wallet -pwallet --silent"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      DATABASE_URL: mysql+pymysql://wallet:wallet@127.0.0.1:3306/wallet_test?charset=utf8mb4
+      TEST_DATABASE_URL: mysql+pymysql://wallet:wallet@127.0.0.1:3306/wallet_test?charset=utf8mb4
+      REDIS_URL: redis://127.0.0.1:6379/0
+      TEST_REDIS_URL: redis://127.0.0.1:6379/0
+      APP_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install project and test tools
+        run: |
+          pip install -e ".[test]"
+          npm ci --prefer-offline --no-audit --no-fund
+      - name: Prepare clean report directories
+        run: |
+          rm -rf allure-results allure-report junit-results newman-results
+          mkdir -p allure-results junit-results
+      - name: Upgrade test database
+        run: alembic upgrade head
+      - name: Lint and type-check
+        run: |
+          ruff check app tests migrations performance scripts
+          ruff format --check app tests migrations performance scripts
+          mypy app tests scripts
+      - name: Run API, database and financial regression
+        run: >-
+          pytest -n auto --ignore=tests/ui -m "not concurrency"
+          --alluredir=allure-results --junitxml=junit-results/regression.xml
+      - name: Run transaction concurrency gate
+        run: >-
+          pytest tests/concurrency --alluredir=allure-results
+          --junitxml=junit-results/concurrency.xml
+      - name: Run Postman/Newman contract flow
+        run: python -m scripts.run_newman
+      - name: Install Playwright browser
+        run: playwright install --with-deps chromium
+      - name: Run UI smoke tests
+        run: >-
+          pytest tests/ui --browser chromium --alluredir=allure-results
+          --junitxml=junit-results/ui.xml
+      - name: Generate Allure HTML report
+        if: always()
+        run: |
+          if find allure-results -type f -print -quit | grep -q .; then
+            npx allure generate allure-results --clean -o allure-report
+          else
+            echo "No Allure results were produced."
+          fi
+      - name: Upload quality evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wallet-quality-evidence
+          if-no-files-found: warn
+          path: |
+            allure-results/
+            allure-report/
+            junit-results/
+            newman-results/

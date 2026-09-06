@@ -1,0 +1,11 @@
+.git
+.venv
+.mypy_cache
+.pytest_cache
+.ruff_cache
+allure-report
+allure-results
+newman-results
+node_modules
+tests
+*.docx

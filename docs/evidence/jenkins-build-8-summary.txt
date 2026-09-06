@@ -1,0 +1,30 @@
+Jenkins local acceptance evidence
+Date: 2026-09-05 Asia/Shanghai
+Job: wallet-quality-pipeline
+Build: 8
+Result: SUCCESS
+Duration: 21603 ms
+Source commit: e1981ca69fcf576ece221d23e2be0debebfa24bc
+
+Static quality gates:
+- Ruff: All checks passed
+- Ruff format: 96 files already formatted
+- mypy: Success, no issues found in 87 source files
+
+Automated tests:
+- API and financial regression: 118 passed
+- Transaction concurrency gate: 1 passed
+- Newman: 10 requests, 10 assertions, 0 failed
+- Jenkins test trend: 129 passed, 0 failed, 0 skipped
+  (119 Pytest cases plus 10 Newman assertions)
+
+Archived evidence:
+- allure-report/**
+- allure-results/**
+- junit-results/regression.xml
+- junit-results/concurrency.xml
+- newman-results/wallet-api-report.xml
+
+UI smoke was intentionally disabled in this Jenkins run. It was independently
+executed on the same date: 3 passed. The GitHub Actions workflow was not run
+because the repository was deliberately not pushed to GitHub.

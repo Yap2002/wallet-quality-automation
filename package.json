@@ -1,0 +1,16 @@
+{
+  "name": "wallet-quality-test-tools",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Project-local Newman and Allure command-line tools.",
+  "scripts": {
+    "newman:wallet": ".venv/bin/python -m scripts.run_newman",
+    "jmeter:wallet": ".venv/bin/python -m scripts.run_jmeter",
+    "allure:generate": "allure generate allure-results --clean -o allure-report",
+    "allure:open": "allure open allure-report"
+  },
+  "devDependencies": {
+    "allure-commandline": "2.43.0",
+    "newman": "6.2.2"
+  }
+}

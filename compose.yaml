@@ -1,0 +1,73 @@
+services:
+  redis:
+    image: mirror.gcr.io/library/redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 2s
+      retries: 15
+  mysql:
+    image: mirror.gcr.io/library/mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: root-wallet-local
+      MYSQL_DATABASE: wallet
+      MYSQL_USER: wallet
+      MYSQL_PASSWORD: wallet
+    ports:
+      - "53306:3306"
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+      - --transaction-isolation=READ-COMMITTED
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u wallet -pwallet --silent"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    volumes:
+      - wallet_mysql_data:/var/lib/mysql
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d:ro
+  app:
+    build: .
+    environment:
+      APP_ENV: local
+      DATABASE_URL: mysql+pymysql://wallet:wallet@mysql:3306/wallet?charset=utf8mb4
+      CHANNEL_CALLBACK_TOKEN: ${CHANNEL_CALLBACK_TOKEN:-local-test-channel-token}
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - "8000:8000"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/live')",
+        ]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  jenkins:
+    profiles: ["ci"]
+    build:
+      context: .
+      dockerfile: docker/jenkins/Dockerfile
+    ports:
+      - "8080:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+    environment:
+      JAVA_OPTS: -Djenkins.install.runSetupWizard=false
+
+volumes:
+  wallet_mysql_data:
+  jenkins_home:

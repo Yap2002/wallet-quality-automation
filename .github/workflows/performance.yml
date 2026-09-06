@@ -1,0 +1,75 @@
+name: Wallet scheduled performance baseline
+
+on:
+  workflow_dispatch:
+    inputs:
+      users:
+        description: Concurrent Locust users
+        required: false
+        default: "10"
+      duration:
+        description: Test duration
+        required: false
+        default: "30s"
+  schedule:
+    - cron: "0 18 * * 1-5"
+
+jobs:
+  performance:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root-wallet-ci
+          MYSQL_DATABASE: wallet_test
+          MYSQL_USER: wallet
+          MYSQL_PASSWORD: wallet
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -u wallet -pwallet --silent"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      DATABASE_URL: mysql+pymysql://wallet:wallet@127.0.0.1:3306/wallet_test?charset=utf8mb4
+      PERF_MAX_FAILURE_RATIO: "0.01"
+      PERF_MAX_P95_MS: "500"
+      PERF_MIN_RPS: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install project and performance tools
+        run: pip install -e ".[test]"
+      - name: Prepare isolated MySQL schema
+        run: alembic upgrade head
+      - name: Start wallet service
+        run: |
+          APP_ENV=test uvicorn app.main:app --host 127.0.0.1 --port 8000 > wallet-service.log 2>&1 &
+          for attempt in {1..30}; do
+            curl --fail --silent http://127.0.0.1:8000/health/live && exit 0
+            sleep 1
+          done
+          exit 1
+      - name: Run Locust performance quality gate
+        env:
+          PERF_USERS: ${{ inputs.users || '10' }}
+          PERF_DURATION: ${{ inputs.duration || '30s' }}
+        run: |
+          mkdir -p performance-results
+          locust -f performance/locustfile.py --headless \
+            --users "$PERF_USERS" --spawn-rate 5 --run-time "$PERF_DURATION" \
+            --host http://127.0.0.1:8000 --csv performance-results/locust \
+            --html performance-results/locust-report.html
+      - name: Upload performance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: locust-performance-results
+          path: |
+            performance-results/
+            wallet-service.log
