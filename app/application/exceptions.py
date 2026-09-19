@@ -56,3 +56,12 @@ class InsufficientBalanceError(ConflictError):
             code="INSUFFICIENT_BALANCE",
             message="wallet balance is insufficient",
         )
+
+
+class FeeConfigurationError(ApplicationError):
+    def __init__(self) -> None:
+        super().__init__(
+            code="FEE_CONFIGURATION_MISSING",
+            message="no active transfer fee rule is configured",
+            status_code=503,
+        )

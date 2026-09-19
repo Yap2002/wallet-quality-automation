@@ -188,6 +188,7 @@
               "const body = pm.response.json();",
               "pm.expect(body.type).to.eql('TRANSFER');",
               "pm.expect(body.status).to.eql('SUCCEEDED');",
+              "pm.expect(body.fee_amount).to.eql('2.00');",
               "pm.collectionVariables.set('transfer_id', body.id);"
             ]
           }
@@ -232,8 +233,8 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.test('payer balance is 60.00', () => pm.response.to.have.status(200));",
-              "pm.expect(pm.response.json().balance).to.eql('60.00');"
+              "pm.test('payer balance is 58.00', () => pm.response.to.have.status(200));",
+              "pm.expect(pm.response.json().balance).to.eql('58.00');"
             ]
           }
         }

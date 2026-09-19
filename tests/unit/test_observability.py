@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -14,7 +15,7 @@ def test_http_log_contains_trace_fields_without_credentials(
 ) -> None:
     caplog.set_level(logging.INFO, logger="wallet.http")
 
-    async def send_request() -> None:
+    async def send_request() -> int:
         async with AsyncClient(
             transport=ASGITransport(app=app),
             base_url="http://test",
@@ -26,9 +27,11 @@ def test_http_log_contains_trace_fields_without_credentials(
                     "Authorization": "Bearer must-not-appear-in-log",
                 },
             )
-        assert response.status_code == 200
+        return response.status_code
 
-    asyncio.run(send_request())
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        status_code = executor.submit(asyncio.run, send_request()).result()
+    assert status_code == 200
 
     records = [
         record

@@ -51,8 +51,8 @@ def test_successful_transfer_in_browser(
 
     page.get_by_test_id("submit-transfer").click()
 
-    expect(page.get_by_test_id("result")).to_contain_text("余额查询成功")
-    expect(page.get_by_test_id("balance")).to_have_text("30.00")
+    expect(page.get_by_test_id("result")).to_contain_text("手续费 2.00")
+    expect(page.get_by_test_id("balance")).to_have_text("28.00")
     assert wallet_steps.get_wallet(payee).balance == Decimal("20.00")
 
 

@@ -7,8 +7,11 @@ __pycache__/
 htmlcov/
 allure-results/
 allure-report/
+allure-results-*/
+allure-report-*/
 newman-results/
 junit-results/
+jmeter.log
 .env
 .venv/
 node_modules/

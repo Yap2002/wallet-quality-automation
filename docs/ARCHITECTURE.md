@@ -39,7 +39,7 @@ stateDiagram-v2
 - `ledger_accounts`、`ledger_entries`：不可替代的资金去向与借贷证据。
 - `idempotency_records`：请求指纹和首次结果。
 - `channel_callbacks`：渠道事件、处理结果和重复次数。
-- `fee_rules`：手续费配置和确定性优先级。
+- `fee_rules`：手续费配置和确定性优先级；迁移预置2.00元默认转账规则，规则缺失时失败关闭。
 
 钱包余额不能代替账务分录。余额回答“现在有多少钱”，分录回答“为什么变成这些钱”。
 

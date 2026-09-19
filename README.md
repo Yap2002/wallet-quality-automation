@@ -15,7 +15,7 @@
 - 用户、CNY钱包、余额查询、充值、提现、转账、部分/全额退款、手续费试算。
 - `PENDING → PROCESSING → SUCCEEDED/FAILED → REFUNDED`受限状态机。
 - Decimal资金处理，拒绝浮点数、负数、零、超精度和超范围金额。
-- 固定、比例、组合、最低、最高、免手续费和优先级规则。
+- 默认转账固定收取2.00元；支持固定、比例、组合、最低、最高、免手续费和优先级规则。
 - MySQL事务、行锁、唯一约束、Alembic迁移和双重记账。
 - 强制幂等键、同键同参数重放、同键不同参数冲突、失败结果重放。
 - 渠道充值、重复/乱序/丢失回调、终态保护和测试环境故障注入。
@@ -23,6 +23,7 @@
 - Hypothesis属性测试、pytest-xdist、并发提现一致性测试。
 - Postman/Newman、Locust、JMeter、Playwright浏览器测试。
 - JSON结构化日志、trace ID、Redis可选状态缓存及断线降级。
+- FastAPI标准HTTPBearer安全方案，Swagger可直接使用Bearer API Key调试受保护接口。
 - Docker Compose、GitHub Actions、Jenkinsfile、Ruff和mypy。
 
 ## 架构
@@ -117,6 +118,7 @@ tests/ui                  Playwright浏览器链路
 - 转账和退款的借方总额等于贷方总额。
 - 每次余额变化都存在对应账务分录。
 - 手续费符合命中规则、上下限和`ROUND_HALF_UP`策略。
+- 只有明确的免手续费规则可以收取0元；有效规则缺失时交易失败且不产生资金影响。
 - 终态不会因重复或乱序回调返回处理中。
 - Redis不可用不会改变MySQL中的资金正确性。
 

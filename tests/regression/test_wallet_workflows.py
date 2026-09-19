@@ -46,13 +46,13 @@ def test_deposit_and_withdrawal_consistency(
     assert_balanced_entries(database_client.get_entries(withdrawal.id))
 
 
-def test_transfer_conserves_wallet_total(
+def test_transfer_conserves_system_funds_with_default_fee(
     test_data_factory: TestDataFactory,
     wallet_steps: WalletSteps,
     database_client: DatabaseClient,
 ) -> None:
     describe_test(
-        "转账保持系统资金总额不变且付款方和收款方都能查询交易",
+        "转账本金和手续费正确入账且账务分录借贷平衡",
         "钱包转账",
     )
     payer = test_data_factory.create_user_with_wallet("payer")
@@ -66,9 +66,9 @@ def test_transfer_conserves_wallet_total(
     payee_view = wallet_steps.get_transaction(transfer.id, payee.user)
 
     assert_succeeded_transaction(transfer, "TRANSFER", Decimal("40.00"))
-    assert_wallet_balance(payer_after, Decimal("60.00"))
+    assert transfer.fee_amount == Decimal("2.00")
+    assert_wallet_balance(payer_after, Decimal("58.00"))
     assert_wallet_balance(payee_after, Decimal("40.00"))
-    assert payer_after.balance + payee_after.balance == Decimal("100.00")
     assert payer_view.id == transfer.id
     assert payee_view.id == transfer.id
     assert_balanced_entries(database_client.get_entries(transfer.id))

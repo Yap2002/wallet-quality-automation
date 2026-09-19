@@ -36,16 +36,20 @@ async function parse(response) {
   return body;
 }
 
-byTestId("query-balance").addEventListener("click", async () => {
-  show("idle", "正在查询…");
+async function refreshBalance(showStatus = true) {
+  if (showStatus) show("idle", "正在查询…");
   try {
     const walletId = byTestId("wallet-id").value.trim();
     const body = await parse(await fetch(`/api/v1/wallets/${walletId}`, { headers: headers() }));
     byTestId("balance").textContent = body.balance;
-    show("success", `余额查询成功 · trace 可用于日志定位`);
+    if (showStatus) show("success", "余额查询成功 · trace 可用于日志定位");
   } catch (error) {
     show("error", error.message);
   }
+}
+
+byTestId("query-balance").addEventListener("click", async () => {
+  await refreshBalance();
 });
 
 byTestId("submit-transfer").addEventListener("click", async () => {
@@ -62,7 +66,7 @@ byTestId("submit-transfer").addEventListener("click", async () => {
       body: JSON.stringify(payload),
     }));
     show("success", `转账成功 · 交易 ${body.id} · 手续费 ${body.fee_amount}`);
-    byTestId("query-balance").click();
+    await refreshBalance(false);
   } catch (error) {
     show("error", error.message);
   }

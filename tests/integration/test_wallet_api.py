@@ -3,7 +3,7 @@ from typing import Any, cast
 from uuid import UUID, uuid4
 
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from app.infrastructure.database.models import (
@@ -127,6 +127,24 @@ def test_authentication_authorization_and_not_found(api_client: ApiClient) -> No
     assert missing.json()["code"] == "RESOURCE_NOT_FOUND"
 
 
+def test_http_bearer_rejects_wrong_scheme_and_invalid_token(api_client: ApiClient) -> None:
+    user = register_user(api_client)
+    wallet = create_wallet(api_client, user)
+
+    wrong_scheme = api_client.get(
+        f"/api/v1/wallets/{wallet['id']}",
+        headers={"Authorization": f"Basic {user['api_key']}"},
+    )
+    invalid_token = api_client.get(
+        f"/api/v1/wallets/{wallet['id']}",
+        headers={"Authorization": "Bearer invalid-token"},
+    )
+
+    for response in (wrong_scheme, invalid_token):
+        assert response.status_code == 401
+        assert response.json()["code"] == "AUTHENTICATION_REQUIRED"
+
+
 def test_deposit_updates_balance_transaction_and_balanced_ledger(
     api_client: ApiClient,
     db_session: Session,
@@ -209,7 +227,7 @@ def test_withdrawal_success_and_insufficient_balance_has_no_money_effect(
     )
 
 
-def test_transfer_preserves_total_balance_and_creates_two_entries(
+def test_default_transfer_fee_is_charged_and_ledger_remains_balanced(
     api_client: ApiClient,
     db_session: Session,
 ) -> None:
@@ -233,6 +251,7 @@ def test_transfer_preserves_total_balance_and_creates_two_entries(
     transaction = response.json()
     assert transaction["type"] == "TRANSFER"
     assert transaction["status"] == "SUCCEEDED"
+    assert transaction["fee_amount"] == "2.00"
 
     db_session.expire_all()
     payer_after = db_session.get(WalletModel, UUID(payer_wallet["id"]))
@@ -242,11 +261,54 @@ def test_transfer_preserves_total_balance_and_creates_two_entries(
     ).all()
     assert payer_after is not None
     assert payee_after is not None
-    assert payer_after.balance == Decimal("60.00")
+    assert payer_after.balance == Decimal("58.00")
     assert payee_after.balance == Decimal("40.00")
-    assert payer_after.balance + payee_after.balance == Decimal("100.00")
-    assert len(entries) == 2
-    assert sum(entry.amount for entry in entries) == Decimal("80.00")
+    assert len(entries) == 3
+    assert sum(
+        entry.amount for entry in entries if entry.direction == LedgerDirection.DEBIT.value
+    ) == Decimal("42.00")
+    assert sum(
+        entry.amount for entry in entries if entry.direction == LedgerDirection.CREDIT.value
+    ) == Decimal("42.00")
+
+
+def test_missing_active_fee_rule_rejects_quote_and_transfer_without_money_effect(
+    api_client: ApiClient,
+    db_session: Session,
+) -> None:
+    db_session.execute(delete(FeeRuleModel))
+    payer = register_user(api_client)
+    payee = register_user(api_client)
+    payer_wallet = create_wallet(api_client, payer)
+    payee_wallet = create_wallet(api_client, payee)
+    deposit(api_client, payer, payer_wallet, "100.00")
+
+    quote = api_client.post(
+        "/api/v1/fees/calculate",
+        headers=auth_headers(payer),
+        json={"amount": "40.00"},
+    )
+    transfer_response = api_client.post(
+        "/api/v1/transfers",
+        headers=auth_headers(payer),
+        json={
+            "source_wallet_id": payer_wallet["id"],
+            "destination_wallet_id": payee_wallet["id"],
+            "amount": "40.00",
+        },
+    )
+
+    db_session.expire_all()
+    payer_after = db_session.get(WalletModel, UUID(payer_wallet["id"]))
+    payee_after = db_session.get(WalletModel, UUID(payee_wallet["id"]))
+    assert quote.status_code == 503
+    assert quote.json()["code"] == "FEE_CONFIGURATION_MISSING"
+    assert transfer_response.status_code == 503
+    assert transfer_response.json()["code"] == "FEE_CONFIGURATION_MISSING"
+    assert payer_after is not None
+    assert payee_after is not None
+    assert payer_after.balance == Decimal("100.00")
+    assert payee_after.balance == Decimal("0.00")
 
 
 def test_highest_priority_fee_rule_is_charged_to_payer_and_credited_to_platform(
@@ -654,7 +716,7 @@ def test_partial_and_full_refunds_restore_money_and_mark_original_refunded(
     assert payer_after is not None
     assert payee_after is not None
     assert original is not None
-    assert payer_after.balance == Decimal("100.00")
+    assert payer_after.balance == Decimal("98.00")
     assert payee_after.balance == Decimal("0.00")
     assert original.status == "REFUNDED"
     assert len(refund_entries) == 4
@@ -713,7 +775,7 @@ def test_duplicate_refund_is_idempotent_and_non_payer_cannot_refund(
     assert forbidden.status_code == 403
     assert payer_after is not None
     assert payee_after is not None
-    assert payer_after.balance == Decimal("15.00")
+    assert payer_after.balance == Decimal("13.00")
     assert payee_after.balance == Decimal("5.00")
 
 

@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.application.exceptions import (
     ConflictError,
+    FeeConfigurationError,
     InsufficientBalanceError,
     PermissionDeniedError,
     ResourceNotFoundError,
@@ -252,9 +253,6 @@ def transfer(
             code="CURRENCY_MISMATCH",
             message="wallet currencies must match",
         )
-    if source.balance < money.amount:
-        raise InsufficientBalanceError
-
     fee = calculate_transfer_fee(session, raw_amount)
     total_debit = money.amount + fee.fee_amount
     if source.balance < total_debit:
@@ -318,7 +316,7 @@ def calculate_transfer_fee(session: Session, raw_amount: str) -> FeeCalculation:
         .limit(1)
     )
     if rule is None:
-        return FeeCalculation(amount, ZERO, None, None)
+        raise FeeConfigurationError
     policy = FeePolicy.from_values(
         fixed_fee=rule.fixed_fee,
         percentage_rate=rule.percentage_rate,

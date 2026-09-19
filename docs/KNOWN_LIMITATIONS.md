@@ -2,9 +2,9 @@
 
 - 只支持CNY和单用户单钱包，没有多币种、汇率、冻结余额或可用余额。
 - 模拟渠道在同一服务进程内，没有真实消息队列、签名证书和网络重试平台。
-- 手续费规则没有管理后台，测试通过SQL准备规则。
+- 默认转账固定手续费为2.00元；手续费规则没有管理后台，测试通过SQL准备覆盖规则。
 - 退款暂不退手续费，部分退款没有独立`PARTIALLY_REFUNDED`状态。
-- API Key认证用于演示，不是OAuth2/KMS级生产认证。
+- 接口使用FastAPI标准HTTPBearer安全方案传递随机API Key，但它不是OAuth2或JWT，也未接入KMS级密钥生命周期管理。
 - Redis缓存只有短TTL状态提示，不承担余额、幂等或分布式锁的最终正确性。
 - Locust/JMeter本机短时结果不能代表生产容量，没有长期稳定性、资源监控和容量拐点数据。
 - 本机Jenkins Pipeline已绑定隔离测试库Credential并真实构建成功；GitHub Actions运行状态以仓库Actions页面为准。
